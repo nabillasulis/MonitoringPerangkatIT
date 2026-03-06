@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IT Monitoring - BRI Region 8</title>
+
+  <!-- Library -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- XLSX Parser (SheetJS) untuk upload Excel + Export XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; overflow-x: hidden; background:#f8fafd; }
+    :root { --bri-blue:#0857C3; }
+
+    .landing-wrapper { background: linear-gradient(180deg, #0857C3 0%, #307FE2 50%, #71C5E8 100%); position: relative; overflow: hidden; }
+    .network-overlay { position:absolute; inset:0; background-image:url('https://img.freepik.com/free-vector/gradient-network-connection-background_23-2148879892.jpg'); background-size:cover; background-position:center; mix-blend-mode:soft-light; opacity:.3; z-index:1; pointer-events:none; }
+    .nodes-particles { position:absolute; inset:0; background-image: radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px); background-size:50px 50px; opacity:.5; z-index:2; pointer-events:none; animation: moveNodes 60s linear infinite; }
+    @keyframes moveNodes { from { background-position:0 0 } to { background-position:50px 50px } }
+
+    .sidebar-active { background:#fff !important; color:var(--bri-blue) !important; font-weight:800; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .sidebar-active i { color:var(--bri-blue) !important; }
+
+    .loader-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.9); z-index:9999; display:none; justify-content:center; align-items:center; flex-direction:column; }
+    .spinner { border:4px solid #f3f3f3; border-top:4px solid #0857C3; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .view-transition { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .bg-login-building{ background-image:url("https://lh3.googleusercontent.com/d/1qqs9VMlpst2f1dM8Kb8kpyCdjeac8JAJ"); background-size:cover; background-position:center; position:relative; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    .bg-brand-blue { background-color: var(--bri-blue); }
+    .profile-card-header { background: linear-gradient(135deg, #0857C3 0%, #1DA1F2 55%, #71C5E8 100%); }
+
+    .pill { padding: .35rem .65rem; border-radius: 999px; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+  </style>
+</head>
+
+<body class="text-slate-900">
+
+  <!-- OVERLAY LOADING GLOBAL -->
+  <div id="loadingOverlay" class="loader-overlay flex">
+    <div class="spinner mb-3"></div>
+    <p class="text-blue-700 font-bold" id="loadingText">Menyiapkan Aplikasi...</p>
+  </div>
+
+  <!-- LANDING -->
+  <section id="landingView" class="min-h-screen flex flex-col landing-wrapper text-white relative">
+    <div class="network-overlay"></div>
+    <div class="nodes-particles"></div>
+
+    <nav class="relative z-10 px-8 py-8 flex justify-between items-center view-transition">
+      <div class="flex items-center gap-4">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/BRI_2020.svg/2560px-BRI_2020.svg.png" class="h-9 brightness-0 invert" alt="Logo BRI">
+        <div class="h-8 w-[1px] bg-white/30"></div>
+        <div class="flex flex-col">
+          <span class="font-extrabold text-base leading-none tracking-tight text-white uppercase text-blue-50">Region 8</span>
+          <span class="text-[10px] font-medium tracking-widest opacity-80 mt-1 uppercase text-blue-50">Jakarta 3</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 -mt-20">
+      <h1 class="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight drop-shadow-lg uppercase">Monitoring Perangkat</h1>
+      <h2 class="text-xl md:text-2xl font-medium mb-12 opacity-95">Information Technology Department</h2>
+
+      <button onclick="showLogin()" class="bg-[#0857C3] hover:bg-[#064591] text-white font-bold py-4 px-14 rounded-full shadow-2xl transition transform hover:-translate-y-1 active:scale-95 border border-white/20">
+        <span class="flex items-center gap-3 text-lg uppercase tracking-wider">
+          Masuk Sekarang <i class="ph-bold ph-arrow-right"></i>
+        </span>
+      </button>
+    </div>
+  </section>
+
+  <!-- LOGIN -->
+  <section id="loginView" class="hidden min-h-screen flex bg-white relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-1/2 bg-login-building relative">
+      <div class="absolute inset-0 bg-blue-900/30 mix-blend-multiply"></div>
+      <div class="absolute top-10 left-10 z-20 flex items-center gap-4 text-white drop-shadow-lg">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/BRI_2020.svg/2560px-BRI_2020.svg.png" class="h-7 md:h-9 brightness-0 invert" alt="Logo BRI" />
+        <div class="h-8 w-[1.5px] bg-white/50"></div>
+        <div class="flex flex-col text-white text-left">
+          <span class="font-extrabold text-lg uppercase tracking-tight">REGION 8</span>
+          <span class="text-xs font-bold opacity-80 uppercase tracking-widest">Jakarta 3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-16 relative">
+      <button onclick="showLanding()" class="absolute top-8 left-8 text-slate-400 hover:text-[#0857C3] font-bold text-sm transition flex items-center gap-2 group">
+        <i class="ph-bold ph-arrow-left group-hover:-translate-x-1 transition-transform"></i> Kembali
+      </button>
+
+      <div class="max-w-md w-full view-transition text-center lg:text-left">
+        <div class="mb-10">
+          <h2 class="text-4xl font-extrabold text-[#0857C3] tracking-tight">Selamat Datang</h2>
+          <p class="text-slate-500 mt-2 text-sm">
+            Masuk ke sistem monitoring aset IT Region 8 untuk melanjutkan.
+            <br/>
+            <span class="font-semibold">User login:</span> gunakan <span class="font-bold">Kode Branch</span>.
+          </p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="pill bg-blue-50 text-[#0857C3]">Password: 123456</span>
+            <span class="pill bg-slate-100 text-slate-700">Admin: username = admin</span>
+            <span class="pill bg-slate-100 text-slate-700">User: username = kode branch</span>
+          </div>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-6">
+          <div class="text-left">
+            <label class="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-2">Username</label>
+            <input type="text" id="username" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition text-sm font-medium" placeholder="admin / kode branch" required>
+          </div>
+
+          <div class="text-left">
+            <label class="block text-slate-600 text-xs font-bold uppercase tracking-widest mb-2">Password</label>
+            <div class="relative">
+              <input type="password" id="password" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-blue-600 outline-none transition text-sm font-medium" placeholder="••••••" required>
+              <button type="button" onclick="togglePassword()" class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#0857C3] focus:outline-none transition-colors">
+                <i id="passwordIcon" class="ph ph-eye text-xl"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnLogin" class="w-full bg-[#0857C3] hover:bg-[#064591] text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-100 transition active:scale-95 text-base uppercase tracking-widest mt-2">
+            Masuk Sekarang
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <div id="appView" class="hidden h-screen bg-[#f8fafd] flex overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-72 bg-[#0857C3] text-white flex flex-col shrink-0 transition-all duration-300 shadow-2xl z-10">
+      <div class="px-6 py-5 min-h-[20px] flex items-center gap-3 border-b border-white/10">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/BRI_2020.svg/2560px-BRI_2020.svg.png" class="h-7 shrink-0 brightness-0 invert block" alt="BRI" />
+        <div class="h-8 w-px bg-white/40"></div>
+        <div class="flex flex-col justify-center leading-tight">
+          <span class="font-extrabold text-[12px] uppercase tracking-wide">REGION 8</span>
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-blue-100/90">JAKARTA 3</span>
+        </div>
+      </div>
+
+      <nav class="flex-1 px-4 py-8 space-y-2 overflow-y-auto custom-scrollbar">
+        <button onclick="switchMenu('dashboard')" id="nav-dashboard" class="sidebar-active w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm transition-all active:scale-[0.98]">
+          <i class="ph-bold ph-squares-four text-xl"></i> Dashboard
+        </button>
+        <button onclick="switchMenu('perangkat')" id="nav-perangkat" class="w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-[0.98]">
+          <i class="ph-bold ph-monitor text-xl"></i> Perangkat
+        </button>
+        <button onclick="switchMenu('upload')" id="nav-upload" class="hidden w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-[0.98]">
+          <i class="ph-bold ph-upload-simple text-xl"></i> Upload Data Aset
+        </button>
+        <button onclick="switchMenu('profile')" id="nav-profile" class="hidden w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-[0.98]">
+          <i class="ph-bold ph-user-circle text-xl"></i> Profile Saya
+        </button>
+      </nav>
+
+      <div class="p-6 border-t border-white/10 bg-black/5">
+        <div id="displayUserRole" class="text-[9px] font-black text-blue-200 uppercase mb-1 tracking-widest italic">ROLE: -</div>
+        <div id="displayUserName" class="px-2 font-bold text-white text-sm mb-4 truncate italic">User</div>
+        <div id="displayUserBranch" class="px-2 text-[11px] text-blue-200 font-bold uppercase tracking-wider mb-4">-</div>
+        <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-3 bg-[#89d4f2] text-[#0052cc] font-bold py-3 rounded-xl text-sm hover:brightness-105 transition-all shadow-md active:scale-95">
+          <i class="ph-bold ph-sign-out"></i> Keluar
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden">
+      <header class="bg-transparent pt-8 px-8 flex flex-col shrink-0">
+        <h1 id="pageTitle" class="text-2xl font-bold text-[#0857C3]">Dashboard</h1>
+        <p id="pageSubtitle" class="text-sm text-gray-500 mt-1">Monitoring Perangkat IT</p>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-8 py-6 relative">
+
+        <!-- DASHBOARD -->
+        <div id="content-dashboard" class="space-y-6 view-transition">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-[#1DA1F2] rounded-xl p-8 text-white shadow-md flex items-center justify-between relative overflow-hidden group min-h-[140px]">
+              <div class="relative z-10">
+                <p class="text-white font-extrabold text-[11px] uppercase tracking-widest mb-2">TOTAL PERANGKAT</p>
+                <h3 class="text-5xl font-black tracking-tight" id="dashTotalPerangkat">0</h3>
+              </div>
+              <i class="ph ph-desktop absolute right-6 text-[80px] opacity-20"></i>
+            </div>
+            <div class="bg-[#0857C3] rounded-xl p-8 text-white shadow-md flex items-center justify-between relative overflow-hidden group min-h-[140px]">
+              <div class="relative z-10">
+                <p class="text-white font-extrabold text-[11px] uppercase tracking-widest mb-2">TOTAL BRANCH OFFICE</p>
+                <h3 class="text-5xl font-black tracking-tight" id="dashTotalBranch">0</h3>
+              </div>
+              <i class="ph ph-buildings absolute right-6 text-[80px] opacity-20"></i>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-8 rounded-xl border border-gray-100 shadow-sm h-[400px] flex flex-col">
+              <h4 class="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-6">DISTRIBUSI KONDISI</h4>
+              <div class="flex-1 min-h-0 relative flex justify-center">
+                <canvas id="chartKondisi"></canvas>
+              </div>
+            </div>
+            <div class="bg-white p-8 rounded-xl border border-gray-100 shadow-sm h-[400px] flex flex-col">
+              <h4 class="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-6">POPULASI JENIS ASET</h4>
+              <div class="flex-1 min-h-0 relative">
+                <canvas id="chartJenis"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mt-6">
+            <div class="p-6 border-b border-gray-100 bg-white">
+              <h4 class="text-[12px] font-extrabold text-gray-600 uppercase tracking-widest">DATA UNIT KERJA PER BRANCH OFFICE</h4>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left whitespace-nowrap">
+                <thead class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest bg-gray-50/50 border-b border-gray-100">
+                  <tr>
+                    <th class="px-8 py-4 text-center w-16">NO</th>
+                    <th class="px-8 py-4">NAMA BRANCH OFFICE</th>
+                    <th class="px-8 py-4 text-center">JUMLAH UKER</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardBranchTable" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERANGKAT -->
+        <div id="content-perangkat" class="hidden space-y-4 view-transition">
+          <div class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm mb-4">
+            <div class="flex flex-col lg:flex-row gap-5 lg:items-end items-stretch justify-between">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full">
+                <div>
+                  <label class="text-[13px] text-gray-500 font-semibold mb-2 block">Branch Office</label>
+                  <div class="relative">
+                    <i class="ph ph-buildings absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <select id="filterBranchOfficeTop" onchange="filterTable()" class="w-full h-11 pl-10 pr-4 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg text-sm text-gray-700 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm">
+                      <option value="">Semua Branch Office</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-[13px] text-gray-500 font-semibold mb-2 block">Kategori Unit Kerja</label>
+                  <div class="relative">
+                    <i class="ph ph-tag absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <select id="filterKategoriUker" onchange="filterTable()" class="w-full h-11 pl-10 pr-4 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg text-sm text-gray-700 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all shadow-sm">
+                      <option value="">Semua Kategori</option>
+                      <option value="BRI UNIT">BRI UNIT</option>
+                      <option value="KC">KC</option>
+                      <option value="KCP">KCP</option>
+                      <option value="KK">KK</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="w-full lg:w-auto flex lg:justify-end justify-stretch gap-3 shrink-0" id="btnAdminActions">
+                <button id="btnExport" onclick="exportCSV()" class="h-11 flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-lg text-sm font-semibold transition flex items-center justify-center shadow">
+                  <i class="ph ph-download-simple font-bold mr-2 text-lg"></i> Ekspor CSV
+                </button>
+                <button id="btnExportXLSX" onclick="exportXLSX()" class="h-11 flex-1 lg:flex-none bg-[#0f766e] hover:bg-[#115e59] text-white px-5 rounded-lg text-sm font-semibold transition flex items-center justify-center shadow">
+                  <i class="ph ph-file-arrow-down font-bold mr-2 text-lg"></i> Ekspor XLSX
+                </button>
+                <button id="btnTambah" onclick="bukaModalForm()" class="h-11 flex-1 lg:flex-none bg-brand-blue hover:bg-blue-700 text-white px-5 rounded-lg text-sm font-semibold transition flex items-center justify-center shadow">
+                  <i class="ph ph-plus font-bold mr-2 text-lg"></i> Tambah Data
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto table-container custom-scrollbar">
+              <table class="w-full text-sm text-left whitespace-nowrap">
+                <thead class="bg-white border-b border-gray-200">
+                  <tr>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">No</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Main Branch</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Branch Office</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Kode Branch</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Unit Kerja</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Nama Perangkat</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Serial Number</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Merk</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Model</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Processor</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">RAM</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Operating System</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Tahun Penerimaan</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Kondisi</th>
+                    <th class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold">Status</th>
+                    <th id="thAksi" class="px-6 py-4 text-[11px] text-gray-500 uppercase tracking-wider font-bold text-center sticky right-0 bg-white shadow-[-4px_0_10px_rgba(0,0,0,0.02)] border-l border-gray-100">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- UPLOAD (Admin Only) -->
+        <div id="content-upload" class="hidden view-transition">
+          <div class="max-w-5xl mx-auto space-y-6">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 class="text-lg font-extrabold text-[#0857C3] uppercase tracking-wide">Upload Data Asset</h3>
+                  <p class="text-sm text-gray-500 mt-1">Upload <b>Excel (.xlsx)</b> atau <b>CSV</b>.</p>
+                </div>
+                <div class="flex gap-3">
+                  <label class="h-11 px-5 rounded-lg bg-[#0857C3] hover:bg-[#064591] text-white font-bold text-sm transition flex items-center gap-2 cursor-pointer">
+                    <i class="ph-bold ph-upload-simple text-lg"></i> Pilih File
+                    <input id="uploadFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleUploadFile(event)" />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h4 class="text-[12px] font-extrabold text-gray-600 uppercase tracking-widest">Preview Upload</h4>
+                  <p class="text-xs text-gray-400 mt-1">Menampilkan maksimal 10 baris pertama.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="uploadCountBadge" class="hidden px-3 py-1 rounded-full text-[11px] font-black bg-blue-50 text-[#0857C3] uppercase tracking-wider">0 Baris</span>
+                  <button id="btnCommitUpload" onclick="commitUploadData()" class="hidden h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition flex items-center gap-2" type="button">
+                    <i class="ph-bold ph-check-circle text-lg"></i> Simpan ke Data Perangkat
+                  </button>
+                </div>
+              </div>
+              <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-sm text-left whitespace-nowrap">
+                  <thead class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest bg-gray-50/50 border-b border-gray-100">
+                    <tr id="uploadPreviewHead"></tr>
+                  </thead>
+                  <tbody id="uploadPreviewBody" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFILE (Admin Only) -->
+        <div id="content-profile" class="hidden view-transition">
+          <div class="max-w-4xl mx-auto space-y-6">
+            <div class="profile-card-header rounded-[32px] p-10 text-white relative overflow-hidden shadow-xl">
+              <div class="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                <div class="w-32 h-32 bg-white/20 backdrop-blur-md rounded-full border-4 border-white/30 flex items-center justify-center">
+                  <i class="ph-fill ph-user-circle text-8xl"></i>
+                </div>
+                <div class="text-center md:text-left">
+                  <h2 class="text-4xl font-black uppercase tracking-tight" id="p_nama">ADMINISTRATOR</h2>
+                  <p class="text-blue-100 font-medium text-lg mt-1" id="p_role">IT Regional Specialist</p>
+                </div>
+              </div>
+              <i class="ph ph-shield-check absolute -right-10 -bottom-10 text-[200px] opacity-10 rotate-12"></i>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
+                <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <i class="ph ph-identification-card text-lg text-blue-600"></i> Informasi Akun
+                </h4>
+                <div class="space-y-6">
+                  <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span class="text-xs text-slate-500 font-medium">Username</span>
+                    <span class="text-sm font-bold text-slate-800" id="p_user">-</span>
+                  </div>
+                  <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span class="text-xs text-slate-500 font-medium">Terakhir Login</span>
+                    <span class="text-sm font-bold text-slate-800" id="p_last_login">-</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100">
+                <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <i class="ph ph-map-pin-line text-lg text-blue-600"></i> Penempatan Unit
+                </h4>
+                <div class="space-y-6">
+                  <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span class="text-xs text-slate-500 font-medium">Regional Office</span>
+                    <span class="text-sm font-bold text-slate-800 uppercase">Region 8</span>
+                  </div>
+                  <div class="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span class="text-xs text-slate-500 font-medium">Wilayah Kerja</span>
+                    <span class="text-sm font-bold text-slate-800 uppercase">Jakarta 3</span>
+                  </div>
+                </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="text-center mt-10 mb-4">
+          <small class="text-gray-400 font-medium">Generated by <span class="text-gray-500 font-semibold">IT Region 8 Jakarta 3</span></small>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL FORM PERANGKAT -->
+  <div id="modalForm" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all scale-95 opacity-0" id="modalContent">
+      <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-xl">
+        <h3 class="text-lg font-bold text-[#0857C3]" id="modalTitle">Tambah Perangkat</h3>
+        <button type="button" onclick="tutupModalForm()" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition">
+          <i class="ph ph-x text-xl font-bold"></i>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-gray-50/50">
+        <form id="formPerangkat" onsubmit="handleFormSubmit(event)">
+          <input type="hidden" id="formId">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="col-span-1 md:col-span-2">
+              <h4 class="font-bold text-[#0857C3] text-sm border-b border-gray-200 pb-2 mb-2">Identitas Unit</h4>
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Kode Branch</label>
+              <input type="text" id="kode_branch" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Contoh: 920">
+              <p class="text-[11px] text-slate-400 mt-1">Untuk User, otomatis sesuai username saat login.</p>
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Main Branch</label>
+              <input type="text" id="main_branch" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Contoh: 437">
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Branch Office</label>
+              <select id="branch_office" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required onchange="syncUnitKerjaOptionsFromBranchOffice()">
+                <option value="">Pilih Branch Office...</option>
+              </select>
+            </div>
+
+            <div class="col-span-1 md:col-span-2">
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Unit Kerja</label>
+              <input list="ukerDatalist" type="text" id="nama_uker" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Ketik / cari Unit Kerja...">
+              <datalist id="ukerDatalist"></datalist>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 mt-4">
+              <h4 class="font-bold text-[#0857C3] text-sm border-b border-gray-200 pb-2 mb-2">Spesifikasi Perangkat</h4>
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Nama Perangkat</label>
+              <input type="text" id="nama_perangkat" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Contoh: Laptop Standard / PC">
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Serial Number</label>
+              <input type="text" id="serial_number" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required>
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Merk</label>
+              <input type="text" id="merk" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" placeholder="Contoh: Dell / HP / Lenovo">
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Model</label>
+              <input type="text" id="model" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" placeholder="Contoh: OptiPlex 5090">
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Processor</label>
+              <input type="text" id="processor" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" placeholder="Contoh: i5-11400">
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">RAM</label>
+              <input type="text" id="ram" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" placeholder="Contoh: 8GB / 16GB">
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Operating System</label>
+              <select id="os" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required onchange="toggleOSOther()">
+                <option value="">Pilih Operating System...</option>
+                <option value="WIN 11">WIN 11</option>
+                <option value="WIN 10">WIN 10</option>
+                <option value="WIN 7">WIN 7</option>
+                <option value="WIN XP">WIN XP</option>
+                <option value="OTHER">OTHER</option>
+              </select>
+              <input type="text" id="os_other" class="mt-2 hidden w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" placeholder="Isi OS lainnya (contoh: Ubuntu 22.04)" />
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Tahun Penerimaan</label>
+              <input list="tahunDatalist" type="text" id="tahun_penerimaan" inputmode="numeric" maxlength="4" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Ketik tahun (YYYY)" />
+              <datalist id="tahunDatalist"></datalist>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 mt-4">
+              <h4 class="font-bold text-[#0857C3] text-sm border-b border-gray-200 pb-2 mb-2">Status</h4>
+            </div>
+
+            <div class="col-span-1 md:col-span-2">
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Kondisi Perangkat</label>
+              <input type="text" id="kondisi" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required placeholder="Contoh: 5-Sangat Baik (Spesifikasi Sesuai Standar)" />
+            </div>
+
+            <div>
+              <label class="block text-[13px] font-semibold text-gray-600 mb-1.5">Status Perangkat</label>
+              <select id="status" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" required>
+                <option value="">Pilih Status...</option>
+                <option value="PH">PH</option>
+                <option value="Gudang">Gudang</option>
+                <option value="Masih Terpakai">Masih Terpakai</option>
+              </select>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <div class="px-6 py-4 border-t border-gray-100 bg-white flex justify-end gap-3 rounded-b-xl">
+        <button type="button" onclick="tutupModalForm()" class="px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold text-sm transition">Batal</button>
+        <button type="submit" form="formPerangkat" class="px-5 py-2 bg-brand-blue text-white rounded-lg hover:bg-blue-700 font-semibold text-sm transition shadow">Simpan Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script>
+    // ==========================
+    // CONFIG
+    // ==========================
+    const API_BASE = localStorage.getItem('API_BASE') || 'http://localhost:3000';
+
+    // file:// biasanya tidak bisa fetch ke localhost karena CORS → simulasi
+    let isSimulasi = (location.protocol === 'file:');
+
+    async function apiFetch(path, opts = {}) {
+      const url = API_BASE + path;
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+      return data;
+    }
+
+    // ==========================
+    // GLOBAL STATE
+    // ==========================
+    let globalDataPerangkat = [];
+    let currentUserRole = '';
+    let currentUserContext = { username:'', role:'', kodeBranch:'', branchOffice:'' };
+
+    let chartKondisiInstance = null;
+    let chartJenisInstance = null;
+
+    let uploadParsedRows = [];
+
+    // ==========================
+    // MASTER DATA (boleh kamu lengkapi)
+    // ==========================
+    const BRANCH_OFFICES = [
+      'KC Balaraja','KC Bandara Soekarno Hatta','KC Bintaro','KC Bumi Serpong Damai','KC Cilegon','KC Ciputat','KC Gading Serpong',
+      'KC Jakarta Daan Mogot','KC Jakarta Hayam Wuruk','KC Jakarta Jelambar','KC Jakarta Joglo','KC Jakarta Kalideres','KC Jakarta Kebon Jeruk',
+      'KC Jakarta Kota','KC Jakarta Palmerah','KC Jakarta Puri Niaga','KC Jakarta S Parman','KC Jakarta Tangerang A yani','KC Jakarta Tangerang City',
+      'KC Jakarta Tangerang Merdeka','KC Jakarta Tanjung Duren','KC Labuan','KC Pamulang','KC Pandeglang','KC Rangkasbitung','KC Serang'
+    ];
+
+    const UNIT_KERJA_BY_BRANCH = {
+      'KC Balaraja': ['BRI UNIT BALARAJA','BRI UNIT CIBADAK BALARAJA','KC BALARAJA','KCP CIKUPA','KK INDAH MAS BALARAJA'],
+      'KC Serang': ['KC SERANG','KCP CIKANDE','KK POLDA BANTEN','BRI UNIT SERANG']
+    };
+
+    // ==========================
+    // UI HELPERS
+    // ==========================
+    function $(id){ return document.getElementById(id); }
+
+    function startLoading(text = 'Sedang memproses...') {
+      const loadingText = $('loadingText');
+      const loadingOverlay = $('loadingOverlay');
+      if (loadingText) loadingText.innerText = text;
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.classList.remove('hidden');
+      }
+      document.body.style.pointerEvents = 'none';
+    }
+
+    function endLoading() {
+      const loadingOverlay = $('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+        loadingOverlay.classList.add('hidden');
+      }
+      document.body.style.pointerEvents = 'auto';
+    }
+
+    function showAlert(title, text, icon) {
+      return Swal.fire({ title, text, icon, confirmButtonColor:'#0857C3', confirmButtonText:'OK' });
+    }
+
+    function showLoginSuccess() {
+      return Swal.fire({ icon:'success', title:'Login Berhasil', showConfirmButton:false, timer:1300, timerProgressBar:true });
+    }
+
+    function formatTanggalWaktuID(dateInput) {
+      const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+      if (isNaN(d.getTime())) return '-';
+      const dateStr = new Intl.DateTimeFormat('id-ID', { timeZone:'Asia/Jakarta', weekday:'long', year:'numeric', month:'long', day:'2-digit' }).format(d);
+      const timeStr = new Intl.DateTimeFormat('id-ID', { timeZone:'Asia/Jakarta', hour:'2-digit', minute:'2-digit', hour12:false }).format(d);
+      return `${dateStr} ${timeStr} WIB`;
+    }
+
+    // ==========================
+    // INIT
+    // ==========================
+    document.addEventListener('DOMContentLoaded', async () => {
+      const overlay = $('loadingOverlay');
+      setTimeout(() => { if (overlay) overlay.style.display = 'none'; }, 500);
+
+      buildBranchOfficeOptions();
+      buildTahunDatalist();
+
+      // cek backend health -> kalau ok, isSimulasi = false
+      if (!isSimulasi) {
+        try { await apiFetch('/api/health'); }
+        catch { isSimulasi = true; }
+      }
+
+      checkLoginState();
+    });
+
+    function buildTahunDatalist() {
+      const dl = $('tahunDatalist');
+      if (!dl) return;
+      dl.innerHTML = '';
+      const now = new Date().getFullYear();
+      for (let y = 2010; y <= now + 5; y++) {
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        dl.appendChild(opt);
+      }
+    }
+
+    function buildBranchOfficeOptions() {
+      const selTop = $('filterBranchOfficeTop');
+      if (selTop) {
+        const current = selTop.value || '';
+        selTop.innerHTML = `<option value="">Semua Branch Office</option>`;
+        BRANCH_OFFICES.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b;
+          opt.textContent = b;
+          selTop.appendChild(opt);
+        });
+        if (current) selTop.value = current;
+      }
+
+      const selForm = $('branch_office');
+      if (selForm) {
+        const current = selForm.value || '';
+        selForm.innerHTML = `<option value="">Pilih Branch Office...</option>`;
+        BRANCH_OFFICES.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b;
+          opt.textContent = b;
+          selForm.appendChild(opt);
+        });
+        if (current) selForm.value = current;
+      }
+    }
+
+    function buildUkerDatalistByBranch(branchOffice) {
+      const dl = $('ukerDatalist');
+      if (!dl) return;
+      dl.innerHTML = '';
+      const list = UNIT_KERJA_BY_BRANCH[branchOffice] || [];
+      list.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u;
+        dl.appendChild(opt);
+      });
+    }
+
+    function syncUnitKerjaOptionsFromBranchOffice() {
+      const branchOffice = $('branch_office')?.value || '';
+      buildUkerDatalistByBranch(branchOffice);
+      const uker = $('nama_uker');
+      if (uker) uker.value = '';
+    }
+
+    function getKategoriFromUker(namaUker) {
+      const t = String(namaUker || '').trim().toUpperCase();
+      if (t.startsWith('BRI UNIT')) return 'BRI UNIT';
+      if (t.startsWith('KCP')) return 'KCP';
+      if (t.startsWith('KK')) return 'KK';
+      if (t.startsWith('KC')) return 'KC';
+      return '';
+    }
+
+    // ==========================
+    // AUTH
+    // ==========================
+    function checkLoginState() {
+      const user = localStorage.getItem('userSession');
+      if (!user) return;
+
+      const userData = JSON.parse(user);
+      if (!userData.loginAt) {
+        userData.loginAt = new Date().toISOString();
+        localStorage.setItem('userSession', JSON.stringify(userData));
+      }
+
+      currentUserRole = userData.role || '';
+      currentUserContext = {
+        username: userData.username || '',
+        role: userData.role || '',
+        kodeBranch: userData.kodeBranch || '',
+        branchOffice: userData.branchOffice || ''
+      };
+
+      if ($('displayUserRole')) $('displayUserRole').innerText = `ROLE: ${(currentUserRole || '-').toUpperCase()}`;
+      if ($('displayUserName')) $('displayUserName').innerHTML = `${userData.nama || 'User'} <br><span class="text-[10px] text-blue-300 uppercase tracking-wider">${currentUserRole}</span>`;
+
+      const branchLine = [];
+      if (currentUserContext.branchOffice) branchLine.push(currentUserContext.branchOffice);
+      if (currentUserContext.kodeBranch) branchLine.push(`Kode: ${currentUserContext.kodeBranch}`);
+      if ($('displayUserBranch')) $('displayUserBranch').innerText = branchLine.length ? branchLine.join(' • ') : '-';
+
+      applyRoleRestrictions();
+      setProfileData(userData);
+
+      $('loginView')?.classList.add('hidden');
+      $('landingView')?.classList.add('hidden');
+      $('appView')?.classList.remove('hidden');
+
+      switchMenu('dashboard');
+    }
+
+    function applyRoleRestrictions() {
+      const navProfile = $('nav-profile');
+      const navUpload = $('nav-upload');
+      const thAksi = $('thAksi');
+
+      if (currentUserRole === 'User') {
+        if (navProfile) navProfile.style.display = 'none';
+        if (navUpload) navUpload.style.display = 'none';
+        if (thAksi) thAksi.classList.add('hidden');
+      } else {
+        if (navProfile) navProfile.style.display = 'flex';
+        if (navUpload) navUpload.style.display = 'flex';
+        if (thAksi) thAksi.classList.remove('hidden');
+      }
+    }
+
+    function setProfileData(userData) {
+      const displayName = currentUserRole === 'Admin' ? 'Administrator IT' : `Branch ${userData.username || '-'}`;
+
+      if ($('p_nama')) $('p_nama').innerText = (displayName || '-').toUpperCase();
+      if ($('p_role')) $('p_role').innerText = currentUserRole === 'Admin' ? 'Information Technology Department' : 'User Monitoring (Branch)';
+      if ($('p_user')) $('p_user').innerText = userData.username || '-';
+      if ($('p_last_login')) $('p_last_login').innerText = formatTanggalWaktuID(userData.loginAt || new Date().toISOString());
+
+      // ✅ FIX: sebelumnya null → sekarang aman
+      if ($('p_branch')) $('p_branch').innerText = (currentUserContext.branchOffice || '-');
+      if ($('p_kode_branch')) $('p_kode_branch').innerText = (currentUserContext.kodeBranch || '-');
+    }
+
+    function togglePassword() {
+      const passwordInput = $('password');
+      const passwordIcon = $('passwordIcon');
+      if (!passwordInput || !passwordIcon) return;
+
+      passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password';
+      passwordIcon.classList.toggle('ph-eye');
+      passwordIcon.classList.toggle('ph-eye-slash');
+    }
+
+    function showLogin() {
+      $('landingView')?.classList.add('hidden');
+      $('loginView')?.classList.remove('hidden');
+    }
+
+    function showLanding() {
+      $('loginView')?.classList.add('hidden');
+      $('landingView')?.classList.remove('hidden');
+    }
+
+    function resetFormLoginDanLanjut() {
+      $('loginForm')?.reset();
+      checkLoginState();
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = $('username')?.value?.trim() || '';
+      const password = $('password')?.value || '';
+      const btn = $('btnLogin');
+
+      if (!username) return showAlert('Login Gagal', 'Username wajib diisi.', 'error');
+
+      startLoading('Membuka sesi...');
+      if (btn) btn.disabled = true;
+
+      try {
+        if (isSimulasi) {
+          if (password !== '123456') throw new Error('Password salah.');
+
+          const role = username.toLowerCase() === 'admin' ? 'Admin' : 'User';
+          localStorage.setItem('userSession', JSON.stringify({
+            username,
+            nama: role === 'Admin' ? 'Administrator IT' : `User Branch (${username})`,
+            role,
+            loginAt: new Date().toISOString(),
+            kodeBranch: role === 'User' ? username : '',
+            branchOffice: ''
+          }));
+        } else {
+          const res = await apiFetch('/api/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+          if (!res?.success) throw new Error(res?.message || 'Login gagal');
+
+          const role = res.user?.role || 'User';
+          localStorage.setItem('userSession', JSON.stringify({
+            ...res.user,
+            loginAt: new Date().toISOString(),
+            kodeBranch: role === 'User' ? username : '',
+            branchOffice: res.user?.branchOffice || ''
+          }));
+        }
+
+        endLoading();
+        if (btn) btn.disabled = false;
+        await showLoginSuccess();
+        resetFormLoginDanLanjut();
+      } catch (err) {
+        endLoading();
+        if (btn) btn.disabled = false;
+        showAlert('Login Gagal', err?.message || 'Terjadi kesalahan.', 'error');
+      }
+    }
+
+    function handleLogout() {
+      Swal.fire({
+        title: 'Keluar dari Aplikasi?',
+        text: 'Sesi login akan diakhiri.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'Ya, Keluar',
+        cancelButtonText: 'Batal'
+      }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        startLoading('Mengakhiri sesi...');
+        localStorage.removeItem('userSession');
+
+        currentUserRole = '';
+        currentUserContext = { username:'', role:'', kodeBranch:'', branchOffice:'' };
+        globalDataPerangkat = [];
+        uploadParsedRows = [];
+
+        if (chartKondisiInstance) { chartKondisiInstance.destroy(); chartKondisiInstance = null; }
+        if (chartJenisInstance) { chartJenisInstance.destroy(); chartJenisInstance = null; }
+
+        $('appView')?.classList.add('hidden');
+        $('loginView')?.classList.add('hidden');
+        $('landingView')?.classList.remove('hidden');
+
+        endLoading();
+        showAlert('Berhasil', 'Anda telah logout.', 'success');
+      });
+    }
+
+    // ==========================
+    // MENU
+    // ==========================
+    function switchMenu(menu) {
+      if (menu === 'profile' && currentUserRole !== 'Admin') return showAlert('Akses Ditolak', 'Halaman Profile hanya untuk Admin.', 'error');
+      if (menu === 'upload' && currentUserRole !== 'Admin') return showAlert('Akses Ditolak', 'Upload hanya untuk Admin.', 'error');
+
+      const baseNav = 'w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all';
+      if ($('nav-dashboard')) $('nav-dashboard').className = baseNav;
+      if ($('nav-perangkat')) $('nav-perangkat').className = baseNav;
+      if ($('nav-upload')) $('nav-upload').className = baseNav;
+      if ($('nav-profile')) $('nav-profile').className = baseNav;
+
+      $('content-dashboard')?.classList.add('hidden');
+      $('content-perangkat')?.classList.add('hidden');
+      $('content-upload')?.classList.add('hidden');
+      $('content-profile')?.classList.add('hidden');
+
+      if (menu === 'dashboard') {
+        if ($('nav-dashboard')) $('nav-dashboard').className = 'sidebar-active w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm transition-all';
+        $('content-dashboard')?.classList.remove('hidden');
+        if ($('pageTitle')) $('pageTitle').innerText = 'Dashboard';
+        if ($('pageSubtitle')) $('pageSubtitle').innerText = 'Monitoring Perangkat IT';
+        loadDashboardData();
+      } else if (menu === 'perangkat') {
+        if ($('nav-perangkat')) $('nav-perangkat').className = 'sidebar-active w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm transition-all';
+        $('content-perangkat')?.classList.remove('hidden');
+        if ($('pageTitle')) $('pageTitle').innerText = 'Data Perangkat';
+        if ($('pageSubtitle')) $('pageSubtitle').innerText = 'Monitoring Perangkat IT';
+        loadDataPerangkat();
+      } else if (menu === 'upload') {
+        if ($('nav-upload')) $('nav-upload').className = 'sidebar-active w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm transition-all';
+        $('content-upload')?.classList.remove('hidden');
+        if ($('pageTitle')) $('pageTitle').innerText = 'Upload Data Asset';
+        if ($('pageSubtitle')) $('pageSubtitle').innerText = 'Import Excel/CSV ke Data Perangkat';
+        resetUploadUI();
+      } else if (menu === 'profile') {
+        if ($('nav-profile')) $('nav-profile').className = 'sidebar-active w-full flex items-center gap-4 px-6 py-4 rounded-xl text-sm transition-all';
+        $('content-profile')?.classList.remove('hidden');
+        if ($('pageTitle')) $('pageTitle').innerText = 'Profile Saya';
+        if ($('pageSubtitle')) $('pageSubtitle').innerText = '';
+      }
+    }
+
+    function filterDataForUser(data) {
+      data = Array.isArray(data) ? data : [];
+      if (currentUserContext.branchOffice) return data.filter(x => String(x.branch_office || '') === String(currentUserContext.branchOffice));
+      if (currentUserContext.kodeBranch) return data.filter(x => String(x.kode_branch || '') === String(currentUserContext.kodeBranch));
+      return data;
+    }
+
+    // ==========================
+    // DASHBOARD
+    // ==========================
+    async function loadDashboardData() {
+      startLoading('Memuat Dashboard...');
+      try {
+        if (isSimulasi) {
+          globalDataPerangkat = [];
+        } else {
+          const res = await apiFetch('/api/perangkat');
+          globalDataPerangkat = Array.isArray(res.data) ? res.data : [];
+          if (currentUserRole === 'User') globalDataPerangkat = filterDataForUser(globalDataPerangkat);
+        }
+        endLoading();
+        updateDashboardUI(globalDataPerangkat);
+      } catch (e) {
+        endLoading();
+        showAlert('Error', e?.message || 'Terjadi kesalahan.', 'error');
+      }
+    }
+
+    function updateDashboardUI(data) {
+      data = data || [];
+      if ($('dashTotalPerangkat')) $('dashTotalPerangkat').innerText = data.length;
+      if ($('dashTotalBranch')) $('dashTotalBranch').innerText = new Set(data.map(d => d.branch_office).filter(Boolean)).size;
+
+      const kondisiCounts = {};
+      const jenisCounts = {};
+      const branchUkerMap = {};
+
+      data.forEach(item => {
+        const k = (item.kondisi || 'Tidak Diketahui').toString().split('(')[0].trim();
+        kondisiCounts[k] = (kondisiCounts[k] || 0) + 1;
+
+        const j = item.nama_perangkat || 'Lainnya';
+        jenisCounts[j] = (jenisCounts[j] || 0) + 1;
+
+        const branch = item.branch_office || 'Tidak Diketahui';
+        const uker = item.nama_uker || 'Tidak Diketahui';
+        if (!branchUkerMap[branch]) branchUkerMap[branch] = new Set();
+        branchUkerMap[branch].add(uker);
+      });
+
+      renderChartKondisi(kondisiCounts);
+      renderChartJenis(jenisCounts);
+      renderDashboardBranchTable(branchUkerMap);
+    }
+
+    function renderChartKondisi(dataMap) {
+      const canvas = $('chartKondisi');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (chartKondisiInstance) chartKondisiInstance.destroy();
+
+      chartKondisiInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(dataMap),
+          datasets: [{ data: Object.values(dataMap), backgroundColor: ['#1DA1F2','#0857C3','#e2e8f0','#f59e0b','#ef4444'], borderWidth: 0 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    function renderChartJenis(dataMap) {
+      const canvas = $('chartJenis');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (chartJenisInstance) chartJenisInstance.destroy();
+
+      const sortedEntries = Object.entries(dataMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      chartJenisInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: sortedEntries.map(e=>e[0]), datasets: [{ label:'Jumlah', data: sortedEntries.map(e=>e[1]), backgroundColor: '#0857C3', borderRadius: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display:false } } }
+      });
+    }
+
+    function renderDashboardBranchTable(branchMap) {
+      const tbody = $('dashboardBranchTable');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      let i = 1;
+      for (const [branch, ukerSet] of Object.entries(branchMap)) {
+        if (branch === 'Tidak Diketahui') continue;
+        tbody.innerHTML += `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-8 py-4 text-center text-gray-400 font-bold">${i++}</td>
+            <td class="px-8 py-4 font-bold text-gray-800">${branch}</td>
+            <td class="px-8 py-4 text-center"><span class="bg-blue-50 text-[#0857C3] px-3.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider">${ukerSet.size} UNIT</span></td>
+          </tr>
+        `;
+      }
+      if (!tbody.innerHTML.trim()) {
+        tbody.innerHTML = `<tr><td colspan="3" class="px-8 py-8 text-center text-gray-400 italic">Belum ada data</td></tr>`;
+      }
+    }
+
+    // ==========================
+    // PERANGKAT
+    // ==========================
+    async function loadDataPerangkat() {
+      startLoading('Memuat Data Perangkat...');
+      buildBranchOfficeOptions();
+
+      try {
+        if (isSimulasi) {
+          globalDataPerangkat = [];
+        } else {
+          const res = await apiFetch('/api/perangkat');
+          globalDataPerangkat = Array.isArray(res.data) ? res.data : [];
+          if (currentUserRole === 'User') globalDataPerangkat = filterDataForUser(globalDataPerangkat);
+        }
+        endLoading();
+        applyUserLocksOnFilters();
+        filterTable();
+      } catch (e) {
+        endLoading();
+        showAlert('Error', e?.message || 'Terjadi kesalahan.', 'error');
+      }
+    }
+
+    function applyUserLocksOnFilters() {
+      const fBranch = $('filterBranchOfficeTop');
+      if (!fBranch) return;
+
+      if (currentUserRole === 'User' && currentUserContext.branchOffice) {
+        fBranch.value = currentUserContext.branchOffice;
+        fBranch.disabled = true;
+      } else {
+        fBranch.disabled = false;
+      }
+    }
+
+    function getCurrentlyFilteredData() {
+      const filterBranch = ($('filterBranchOfficeTop')?.value || '').toLowerCase();
+      const filterKategori = ($('filterKategoriUker')?.value || '').toUpperCase();
+
+      return (globalDataPerangkat || []).filter(item => {
+        const branchMatch = !filterBranch || (item.branch_office || '').toLowerCase() === filterBranch;
+        const kat = getKategoriFromUker(item.nama_uker || '');
+        const kategoriMatch = !filterKategori || kat === filterKategori;
+        return branchMatch && kategoriMatch;
+      });
+    }
+
+    function filterTable() {
+      renderTable(getCurrentlyFilteredData());
+    }
+
+    function renderTable(dataArray) {
+      const tbody = $('tableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const isAdmin = currentUserRole === 'Admin';
+      const colspanVal = isAdmin ? 16 : 15;
+
+      if (!dataArray || dataArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colspanVal}" class="text-center py-8 text-gray-500 italic">Belum ada data perangkat</td></tr>`;
+        return;
+      }
+
+      dataArray.forEach((item, index) => {
+        const aksiCell = isAdmin ? `
+          <td class="px-6 py-3.5 text-center sticky right-0 bg-white group-hover:bg-blue-50/50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)] border-l border-gray-100 transition-colors">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="editPerangkat('${item.id}')" class="text-[#0d6efd] hover:bg-blue-100 p-1.5 rounded-md transition"><i class="ph ph-pencil-simple text-[18px]"></i></button>
+              <button onclick="hapusData('${item.id}')" class="text-red-500 hover:bg-red-100 p-1.5 rounded-md transition"><i class="ph ph-trash text-[18px]"></i></button>
+            </div>
+          </td>
+        ` : '';
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-blue-50/50 transition-colors group';
+        tr.innerHTML = `
+          <td class="px-6 py-3.5 text-center text-gray-700">${index + 1}</td>
+          <td class="px-6 py-3.5 text-gray-800 font-semibold uppercase">${item.main_branch || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-semibold uppercase">${item.branch_office || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-bold uppercase">${item.kode_branch || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-900">${item.nama_uker || '-'}</td>
+          <td class="px-6 py-3.5 text-[#0857C3] font-semibold">${item.nama_perangkat || '-'}</td>
+          <td class="px-6 py-3.5 font-mono text-[13px] text-gray-600">${item.serial_number || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-semibold">${item.merk || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700">${item.model || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700">${item.processor || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-bold">${item.ram || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-bold uppercase">${item.os || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-bold">${item.tahun_penerimaan || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700">${item.kondisi || '-'}</td>
+          <td class="px-6 py-3.5 text-gray-700 font-bold">${item.status || '-'}</td>
+          ${aksiCell}
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ==========================
+    // EXPORT (Admin & User)
+    // ==========================
+    function exportCSV() {
+      const filteredData = getCurrentlyFilteredData();
+      if (filteredData.length === 0) return showAlert('Info', 'Tidak ada data untuk diekspor.', 'info');
+
+      const headers = ['No','Main Branch','Branch Office','Kode Branch','Unit Kerja','Nama Perangkat','Serial Number','Merk','Model','Processor','RAM','Operating System','Tahun Penerimaan','Kondisi','Status'];
+      let csvContent = headers.join(',') + '\n';
+
+      filteredData.forEach((item, index) => {
+        const row = [
+          index + 1,
+          `"${item.main_branch || ''}"`,
+          `"${item.branch_office || ''}"`,
+          `"${item.kode_branch || ''}"`,
+          `"${item.nama_uker || ''}"`,
+          `"${item.nama_perangkat || ''}"`,
+          `"${item.serial_number || ''}"`,
+          `"${item.merk || ''}"`,
+          `"${item.model || ''}"`,
+          `"${item.processor || ''}"`,
+          `"${item.ram || ''}"`,
+          `"${item.os || ''}"`,
+          `"${item.tahun_penerimaan || ''}"`,
+          `"${item.kondisi || ''}"`,
+          `"${item.status || ''}"`
+        ];
+        csvContent += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Data_Perangkat_IT_Region8_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showAlert('Berhasil', 'File CSV berhasil diunduh.', 'success');
+    }
+
+    function exportXLSX() {
+      const filteredData = getCurrentlyFilteredData();
+      if (filteredData.length === 0) return showAlert('Info', 'Tidak ada data untuk diekspor.', 'info');
+
+      const rows = filteredData.map((item, idx) => ({
+        'No': idx + 1,
+        'Main Branch': item.main_branch || '',
+        'Branch Office': item.branch_office || '',
+        'Kode Branch': item.kode_branch || '',
+        'Unit Kerja': item.nama_uker || '',
+        'Nama Perangkat': item.nama_perangkat || '',
+        'Serial Number': item.serial_number || '',
+        'Merk': item.merk || '',
+        'Model': item.model || '',
+        'Processor': item.processor || '',
+        'RAM': item.ram || '',
+        'Operating System': item.os || '',
+        'Tahun Penerimaan': item.tahun_penerimaan || '',
+        'Kondisi': item.kondisi || '',
+        'Status': item.status || ''
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Data Perangkat');
+      XLSX.writeFile(wb, `Data_Perangkat_IT_Region8_${new Date().toISOString().split('T')[0]}.xlsx`);
+      showAlert('Berhasil', 'File XLSX berhasil diunduh.', 'success');
+    }
+
+    // ==========================
+    // MODAL + FORM
+    // ==========================
+    function bukaModalForm() {
+      $('formPerangkat')?.reset();
+      if ($('formId')) $('formId').value = '';
+      if ($('modalTitle')) $('modalTitle').innerText = 'TAMBAH PERANGKAT BARU';
+
+      buildBranchOfficeOptions();
+      toggleOSOther();
+      buildUkerDatalistByBranch('');
+
+      const kodeBranchEl = $('kode_branch');
+      const branchOfficeEl = $('branch_office');
+
+      if (kodeBranchEl) kodeBranchEl.readOnly = false;
+      if (branchOfficeEl) branchOfficeEl.disabled = false;
+
+      if (currentUserRole === 'User') {
+        if (kodeBranchEl && currentUserContext.kodeBranch) {
+          kodeBranchEl.value = currentUserContext.kodeBranch;
+          kodeBranchEl.readOnly = true;
+        }
+        if (branchOfficeEl && currentUserContext.branchOffice) {
+          branchOfficeEl.value = currentUserContext.branchOffice;
+          branchOfficeEl.disabled = true;
+          buildUkerDatalistByBranch(currentUserContext.branchOffice);
+        }
+      }
+
+      const modal = $('modalForm');
+      modal?.classList.remove('hidden');
+      setTimeout(() => $('modalContent')?.classList.remove('scale-95','opacity-0'), 10);
+    }
+
+    function tutupModalForm() {
+      const kodeBranchEl = $('kode_branch');
+      const branchOfficeEl = $('branch_office');
+      if (kodeBranchEl) kodeBranchEl.readOnly = false;
+      if (branchOfficeEl) branchOfficeEl.disabled = false;
+
+      $('modalContent')?.classList.add('scale-95','opacity-0');
+      setTimeout(() => $('modalForm')?.classList.add('hidden'), 300);
+    }
+
+    function toggleOSOther() {
+      const os = $('os');
+      const other = $('os_other');
+      if (!os || !other) return;
+      if (os.value === 'OTHER') other.classList.remove('hidden');
+      else { other.classList.add('hidden'); other.value=''; }
+    }
+
+    function getFinalOSValue() {
+      const os = $('os')?.value || '';
+      const other = $('os_other')?.value || '';
+      return os === 'OTHER' ? (other || 'OTHER').trim() : os;
+    }
+
+    function editPerangkat(id) {
+      if (currentUserRole !== 'Admin') return showAlert('Akses Ditolak', 'Hanya Admin yang bisa edit data.', 'error');
+
+      const item = globalDataPerangkat.find(d => String(d.id) === String(id));
+      if (!item) return;
+
+      if ($('formId')) $('formId').value = item.id || '';
+      if ($('kode_branch')) $('kode_branch').value = item.kode_branch || '';
+      if ($('main_branch')) $('main_branch').value = item.main_branch || '';
+
+      buildBranchOfficeOptions();
+      if ($('branch_office')) $('branch_office').value = item.branch_office || '';
+      buildUkerDatalistByBranch(item.branch_office || '');
+
+      if ($('nama_uker')) $('nama_uker').value = item.nama_uker || '';
+      if ($('nama_perangkat')) $('nama_perangkat').value = item.nama_perangkat || '';
+      if ($('serial_number')) $('serial_number').value = item.serial_number || '';
+      if ($('merk')) $('merk').value = item.merk || '';
+      if ($('model')) $('model').value = item.model || '';
+      if ($('processor')) $('processor').value = item.processor || '';
+      if ($('ram')) $('ram').value = item.ram || '';
+
+      const osSel = $('os');
+      const osOther = $('os_other');
+      const valOS = (item.os || '').trim();
+      const standard = ['WIN 11','WIN 10','WIN 7','WIN XP',''];
+      if (osSel && osOther) {
+        if (standard.includes(valOS)) { osSel.value = valOS; osOther.value=''; }
+        else { osSel.value = 'OTHER'; osOther.value = valOS; }
+        toggleOSOther();
+      }
+
+      if ($('tahun_penerimaan')) $('tahun_penerimaan').value = item.tahun_penerimaan || '';
+      if ($('kondisi')) $('kondisi').value = item.kondisi || '';
+      if ($('status')) $('status').value = item.status || '';
+
+      if ($('modalTitle')) $('modalTitle').innerText = 'EDIT PERANGKAT';
+
+      const modal = $('modalForm');
+      modal?.classList.remove('hidden');
+      setTimeout(() => $('modalContent')?.classList.remove('scale-95','opacity-0'), 10);
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      if (!['Admin','User'].includes(currentUserRole)) return showAlert('Akses Ditolak', 'Anda tidak punya izin.', 'error');
+
+      const tahun = ($('tahun_penerimaan')?.value || '').trim();
+      if (!/^\d{4}$/.test(tahun)) return showAlert('Validasi', 'Tahun penerimaan harus 4 digit (contoh: 2024).', 'warning');
+
+      const payload = {
+        id: $('formId')?.value || '',
+        main_branch: ($('main_branch')?.value || '').trim().toUpperCase(),
+        branch_office: currentUserRole === 'User'
+          ? (currentUserContext.branchOffice || $('branch_office')?.value || '')
+          : ($('branch_office')?.value || ''),
+        kode_branch: currentUserRole === 'User'
+          ? (currentUserContext.kodeBranch || ($('kode_branch')?.value || '').trim())
+          : ($('kode_branch')?.value || '').trim(),
+        nama_uker: ($('nama_uker')?.value || '').trim().toUpperCase(),
+        nama_perangkat: ($('nama_perangkat')?.value || '').trim(),
+        serial_number: ($('serial_number')?.value || '').trim().toUpperCase(),
+        merk: $('merk')?.value || '',
+        model: $('model')?.value || '',
+        processor: $('processor')?.value || '',
+        ram: $('ram')?.value || '',
+        os: getFinalOSValue(),
+        tahun_penerimaan: tahun,
+        kondisi: $('kondisi')?.value || '',
+        status: $('status')?.value || ''
+      };
+
+      startLoading('Menyimpan Data...');
+      try {
+        if (isSimulasi) throw new Error('Mode simulasi: backend belum tersambung.');
+        const res = await apiFetch('/api/perangkat', { method: 'POST', body: JSON.stringify(payload) });
+        endLoading();
+        tutupModalForm();
+        await loadDataPerangkat();
+        showAlert('Berhasil', res.message || 'Data disimpan.', 'success');
+      } catch (err) {
+        endLoading();
+        showAlert('Gagal', err?.message || 'Gagal menyimpan.', 'error');
+      }
+    }
+
+    async function hapusData(id) {
+      if (currentUserRole !== 'Admin') return showAlert('Akses Ditolak', 'Role Anda tidak punya izin hapus.', 'error');
+
+      const confirm = await Swal.fire({
+        title: 'Hapus Data?',
+        text: 'Tindakan ini permanen!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal'
+      });
+      if (!confirm.isConfirmed) return;
+
+      startLoading('Menghapus...');
+      try {
+        if (isSimulasi) throw new Error('Mode simulasi: backend belum tersambung.');
+        const res = await apiFetch(`/api/perangkat/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        endLoading();
+        await loadDataPerangkat();
+        showAlert('Terhapus', res.message || 'Data dihapus.', 'success');
+      } catch (err) {
+        endLoading();
+        showAlert('Gagal', err?.message || 'Gagal hapus.', 'error');
+      }
+    }
+
+    // ==========================
+    // UPLOAD (Admin Only)
+    // ==========================
+    function resetUploadUI() {
+      uploadParsedRows = [];
+      const head = $('uploadPreviewHead');
+      const body = $('uploadPreviewBody');
+      const badge = $('uploadCountBadge');
+      const btn = $('btnCommitUpload');
+
+      if (head) head.innerHTML = `<th class="px-6 py-4">Belum ada file</th>`;
+      if (body) body.innerHTML = `<tr><td class="px-6 py-6 text-gray-500 italic">Silakan klik tombol "Pilih File" untuk preview.</td></tr>`;
+      if (badge) { badge.classList.add('hidden'); badge.innerText = '0 Baris'; }
+      if (btn) btn.classList.add('hidden');
+
+      const input = $('uploadFileInput');
+      if (input) input.value = '';
+    }
+
+    async function handleUploadFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      startLoading('Membaca file...');
+      try {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+        let merged = [];
+        if (ext === 'csv') {
+          const text = await file.text();
+          merged = parseCSVToObjects(text);
+        } else {
+          if (ext !== 'xlsx' && ext !== 'xls') throw new Error('Format file tidak didukung. Gunakan .xlsx/.xls atau .csv');
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          const sheetNames = wb.SheetNames || [];
+          if (sheetNames.length === 0) throw new Error('Tidak ada sheet di file Excel.');
+
+          sheetNames.forEach(sn => {
+            const part = XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval: '' });
+            merged = merged.concat(part.map(r => ({ ...r, __sheet: sn })));
+          });
+        }
+
+        uploadParsedRows = normalizeUploadedRows(merged);
+        endLoading();
+        renderUploadPreview(uploadParsedRows);
+      } catch (err) {
+        endLoading();
+        showAlert('Gagal Upload', err?.message || 'File tidak bisa diproses.', 'error');
+        resetUploadUI();
+      }
+    }
+
+    function parseCSVToObjects(text) {
+      const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim() !== '');
+      if (lines.length < 2) return [];
+      const headers = splitCSVLine(lines[0]).map(h => h.trim());
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = splitCSVLine(lines[i]);
+        const obj = {};
+        headers.forEach((h, idx) => obj[h] = (cols[idx] ?? '').trim());
+        data.push(obj);
+      }
+      return data;
+    }
+
+    function splitCSVLine(line) {
+      const out = []; let cur = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i]; const next = line[i + 1];
+        if (ch === '"' && inQuotes && next === '"') { cur += '"'; i++; continue; }
+        if (ch === '"') { inQuotes = !inQuotes; continue; }
+        if (ch === ',' && !inQuotes) { out.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function findValueCaseInsensitive(obj, key) {
+      const target = String(key).toLowerCase().trim();
+      for (const k of Object.keys(obj || {})) {
+        if (String(k).toLowerCase().trim() === target) return obj[k];
+      }
+      return undefined;
+    }
+
+    function normalizeUploadedRows(rawRows) {
+      const normalized = [];
+      const nowBase = Date.now();
+
+      rawRows.forEach((r, idx) => {
+        const values = Object.entries(r || {}).filter(([k]) => k !== '__sheet').map(([, v]) => String(v ?? '').trim());
+        if (values.length === 0 || values.every(v => v === '')) return;
+
+        const get = (...keys) => {
+          for (const k of keys) {
+            const val = findValueCaseInsensitive(r, k);
+            if (val !== undefined) return String(val ?? '').trim();
+          }
+          return '';
+        };
+
+        normalized.push({
+          id: `UPL-${nowBase}-${idx}`,
+          main_branch: get('Main Branch','main_branch','MAIN BRANCH'),
+          branch_office: get('Branch Office','branch_office','BRANCH OFFICE') || String(r.__sheet || '').trim(),
+          kode_branch: get('Kode Branch','kode_branch','KODE BRANCH'),
+          nama_uker: (get('Unit Kerja','unit_kerja','UNIT KERJA') || '').toUpperCase(),
+          nama_perangkat: get('Nama Perangkat','nama_perangkat','NAMA PERANGKAT'),
+          serial_number: (get('Serial Number','serial_number','SERIAL NUMBER') || '').toUpperCase(),
+          merk: get('Merk','merk','MERK'),
+          model: get('Model','model','MODEL'),
+          processor: get('Processor','processor','CPU','cpu'),
+          ram: get('RAM','ram','Ram'),
+          os: get('Operating System','OS','os'),
+          tahun_penerimaan: get('Tahun Penerimaan','tahun_penerimaan','TAHUN PENERIMAAN'),
+          kondisi: get('Kondisi','kondisi','KONDISI'),
+          status: get('Status','status','STATUS')
+        });
+      });
+
+      return normalized;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#039;");
+    }
+
+    function renderUploadPreview(rows) {
+      const head = $('uploadPreviewHead');
+      const body = $('uploadPreviewBody');
+      const badge = $('uploadCountBadge');
+      const btn = $('btnCommitUpload');
+
+      const cols = ['main_branch','branch_office','kode_branch','nama_uker','nama_perangkat','serial_number','merk','model','processor','ram','os','tahun_penerimaan','kondisi','status'];
+
+      if (head) head.innerHTML = cols.map(c => `<th class="px-6 py-4">${c.replaceAll('_',' ')}</th>`).join('');
+
+      if (!rows || rows.length === 0) {
+        if (body) body.innerHTML = `<tr><td class="px-6 py-6 text-gray-500 italic" colspan="${cols.length}">Tidak ada data terbaca dari file.</td></tr>`;
+        badge?.classList.add('hidden');
+        btn?.classList.add('hidden');
+        return;
+      }
+
+      const preview = rows.slice(0, 10);
+      if (body) {
+        body.innerHTML = preview.map(r => `
+          <tr class="hover:bg-gray-50 transition-colors">
+            ${cols.map(c => `<td class="px-6 py-3.5 text-gray-700">${escapeHtml(r[c] ?? '')}</td>`).join('')}
+          </tr>
+        `).join('');
+      }
+
+      if (badge) { badge.classList.remove('hidden'); badge.innerText = `${rows.length} Baris`; }
+      btn?.classList.remove('hidden');
+    }
+
+    async function commitUploadData() {
+      if (!uploadParsedRows || uploadParsedRows.length === 0) return showAlert('Info', 'Tidak ada data upload untuk disimpan.', 'info');
+      if (isSimulasi) return showAlert('Simulasi', 'Mode simulasi: backend belum tersambung.', 'warning');
+
+      const ok = await Swal.fire({
+        title: 'Simpan Data Upload?',
+        text: `Total ${uploadParsedRows.length} baris akan ditambahkan.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'Ya, Simpan',
+        cancelButtonText: 'Batal'
+      });
+      if (!ok.isConfirmed) return;
+
+      startLoading('Menyimpan data upload...');
+      try {
+        const res = await apiFetch('/api/perangkat/bulk', { method: 'POST', body: JSON.stringify({ rows: uploadParsedRows }) });
+        endLoading();
+        uploadParsedRows = [];
+        resetUploadUI();
+        await showAlert('Berhasil', res.message || 'Upload berhasil disimpan.', 'success');
+        switchMenu('perangkat');
+      } catch (err) {
+        endLoading();
+        showAlert('Gagal', err?.message || 'Gagal menyimpan upload.', 'error');
+      }
+    }
+
+    // ==========================
+    // EXPOSE
+    // ==========================
+    window.showLogin = showLogin;
+    window.showLanding = showLanding;
+    window.togglePassword = togglePassword;
+    window.handleLogin = handleLogin;
+    window.switchMenu = switchMenu;
+    window.handleLogout = handleLogout;
+
+    window.bukaModalForm = bukaModalForm;
+    window.tutupModalForm = tutupModalForm;
+    window.handleFormSubmit = handleFormSubmit;
+    window.editPerangkat = editPerangkat;
+    window.hapusData = hapusData;
+    window.filterTable = filterTable;
+
+    window.exportCSV = exportCSV;
+    window.exportXLSX = exportXLSX;
+
+    window.handleUploadFile = handleUploadFile;
+    window.commitUploadData = commitUploadData;
+
+    window.toggleOSOther = toggleOSOther;
+    window.syncUnitKerjaOptionsFromBranchOffice = syncUnitKerjaOptionsFromBranchOffice;
+  </script>
+</body>
+</html>
